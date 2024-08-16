@@ -26,6 +26,8 @@ def fn2asm(pdf, minlen):
     # check
     if pdf is None:
         return
+    if pdf == {}:
+        return
     if len(pdf['ops']) < minlen:
         return
     if 'invalid' in [op['type'] for op in pdf['ops']]:
