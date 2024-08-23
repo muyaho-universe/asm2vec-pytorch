@@ -163,5 +163,7 @@ tags
 [._]*.un~
 
 .tar
+.csv
+.txt
 
 # End of https://www.toptal.com/developers/gitignore/api/vim,python
