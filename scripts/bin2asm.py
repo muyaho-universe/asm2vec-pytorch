@@ -5,6 +5,7 @@ import click
 import r2pipe
 import hashlib
 from pathlib import Path
+import time
 
 def sha3(data):
     return hashlib.sha3_256(data.encode()).hexdigest()
@@ -25,9 +26,11 @@ def normalize(opcode):
 def fn2asm(pdf, minlen):
     # check
     if pdf is None:
+        print('pdf is empty')
         return
     if pdf == {}:
         return
+        #print(f'pdf:\n{pdf}')
     if len(pdf['ops']) < minlen:
         return
     if 'invalid' in [op['type'] for op in pdf['ops']]:
@@ -41,7 +44,7 @@ def fn2asm(pdf, minlen):
     for i, op in enumerate(ops):
         if op.get('jump') in scope:
             labels.setdefault(op.get('jump'), i)
-    
+
     # dump output
     output = ''
     for op in ops:
@@ -53,35 +56,55 @@ def fn2asm(pdf, minlen):
             output += f' {op["type"]} LABEL{labels[op["jump"]]}\n'
         else:
             output += f' {normalize(op["opcode"])}\n'
-
+    # print(f'labels: {labels}')
     return output
 
 def bin2asm(filename, opath, minlen):
+    # print(f'filename: {filename}')
     # check
     if not validEXE(filename):
+    #    print('error')
         return 0
-    
+
     r = r2pipe.open(str(filename))
     r.cmd('aaaa')
 
     count = 0
+    fff = str(filename).split('/')[-1].split('.')[0]
+    fc_name = get_fc(fff)
+    print(fc_name)
 
     for fn in r.cmdj('aflj'):
+        function_name = fn['name'].split('.')[-1]
+        print(f'function_name: {function_name}')
         r.cmd(f's {fn["offset"]}')
         asm = fn2asm(r.cmdj('pdfj'), minlen)
-        if asm:
-            uid = sha3(asm)
+        if asm and function_name == fc_name:
             asm = f''' .name {fn["name"]}
  .offset {fn["offset"]:016x}
  .file {filename.name}
 ''' + asm
-            with open(opath / uid, 'w') as f:
+            file_name = ''
+            file_name = str(fff) + '_' + str(function_name)
+            print(file_name)
+            with open(opath / file_name, 'w') as f:
                 f.write(asm)
                 count += 1
-
     print(f'[+] {filename}')
 
     return count
+
+def get_fc(filename):
+        csv_file = '/root/asm.csv'
+        with open(csv_file, 'r') as f:
+            lines = f.readlines()
+
+            for line in lines:
+                cve = line.split(',')[1]
+                if cve in filename:
+                    function_name = line.split(',')[3].replace('\n', '')
+                    return function_name
+        return None
 
 @click.command()
 @click.option('-i', '--input', 'ipath', help='input directory / file', required=True)

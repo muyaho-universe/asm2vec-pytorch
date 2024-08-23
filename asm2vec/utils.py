@@ -46,6 +46,19 @@ def preprocess(functions, tokens):
                 y.append([tokens[token].index for token in seq[j].tokens()])
     return torch.tensor(x), torch.tensor(y)
 
+# This preprocess function is used to gather the data from the functions and tokens
+# This function does not use random_walk() function, because it needs to gather the data directly from the functions, not randomly
+# This function name is preprocess2
+def preprocess2(functions, tokens):
+    x, y = [], []
+    for i, fn in enumerate(functions):
+        for seq in fn:
+            for j in range(1, len(seq) - 1):
+                x.append([i] + [tokens[token].index for token in seq[j-1].tokens() + seq[j+1].tokens()])
+                y.append([tokens[token].index for token in seq[j].tokens()])
+    return torch.tensor(x), torch.tensor(y)
+
+
 def train(
     functions,
     tokens,
@@ -64,18 +77,19 @@ def train(
         if model is None:
             model = ASM2VEC(tokens.size(), function_size=len(functions), embedding_size=embedding_size).to(device)
         optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+        loader = DataLoader(AsmDataset(*preprocess(functions, tokens)), batch_size=batch_size, shuffle=True)
     elif mode == 'test':
         if model is None:
             raise ValueError("test mode required pretrained model")
         optimizer = torch.optim.Adam(model.embeddings_f.parameters(), lr=learning_rate)
+        loader = DataLoader(AsmDataset(*preprocess2(functions, tokens)), batch_size=batch_size, shuffle=False)
     else:
         raise ValueError("Unknown mode")
 
-    loader = DataLoader(AsmDataset(*preprocess(functions, tokens)), batch_size=batch_size, shuffle=True)
+    
     for epoch in range(epochs):
         start = time.time()
         loss_sum, loss_count, accs = 0.0, 0, []
-
         model.train()
         for i, (inp, pos) in enumerate(loader):
             neg = tokens.sample(inp.shape[0], neg_sample_num)

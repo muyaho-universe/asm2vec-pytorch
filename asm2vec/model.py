@@ -22,12 +22,13 @@ class ASM2VEC(nn.Module):
 
     def v(self, inp):
         e  = self.embeddings(inp[:,1:])
-        v_f = self.embeddings_f(inp[:,0])
-        v_prev = torch.cat([e[:,0], (e[:,1] + e[:,2]) / 2], dim=1)
-        v_next = torch.cat([e[:,3], (e[:,4] + e[:,5]) / 2], dim=1)
-        v = ((v_f + v_prev + v_next) / 3).unsqueeze(2)
+        v_f = self.embeddings_f(inp[:,0]) # theta function
+        v_prev = torch.cat([e[:,0], (e[:,1] + e[:,2]) / 2], dim=1)  # in_j-1 / e[:,0] is opcode, e[:,1] is operand1, e[:,2] is operand2 (equation (3))
+        v_next = torch.cat([e[:,3], (e[:,4] + e[:,5]) / 2], dim=1)  # in_j+1
+        v = ((v_f + v_prev + v_next) / 3).unsqueeze(2) # equation (4)
         return v
 
+    # Softmax loss
     def forward(self, inp, pos, neg):
         device, batch_size = inp.device, inp.shape[0]
         v = self.v(inp)
