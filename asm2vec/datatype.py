@@ -125,21 +125,31 @@ class Function:
         return seq
     
     def normal_walk(self, num=3):
-        return [self._normal_walk() for _ in range(num)]
-    def _normal_walk(self):
-        current, visited, seq = self.blocks[0], [], []
+        seq_list = [self._normal_walk(i) for i in range(len(self.blocks))]
+        # seq_list = [self._normal_walk(i) for i in range(num)]
+        return seq_list
+
+    # traverse the blocks in order
+    def _normal_walk(self, i):
+        current, visited, seq = self.blocks[i], [], []
         while current not in visited:
             visited.append(current)
             seq += current.insts
             # no following block / hit return
             if len(current.successors) == 0 or current.insts[-1].op == 'ret':
                 break
-            current = list(current.successors)[0]
+            current = sorted(list(current.successors))[0]
         return seq
+
 class BasicBlock:
     def __init__(self):
         self.insts = []
         self.successors = set()
+
+    def set_idx(self, idx):
+        self.idx = idx
+    def __lt__(self, other):
+        return self.idx < other.idx
     def add(self, inst):
         self.insts.append(inst)
     def end(self):

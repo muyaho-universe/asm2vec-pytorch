@@ -32,6 +32,7 @@ def load_data(paths, limit=None):
             break
         with open(filename) as f:
             fn = Function.load(f.read())
+            print(f'fn: {fn}')
             functions.append(fn)
             tokens.add(fn.tokens())
     
@@ -52,7 +53,8 @@ def preprocess(functions, tokens):
 def preprocess2(functions, tokens):
     x, y = [], []
     for i, fn in enumerate(functions):
-        for seq in fn:
+        for seq in fn.normal_walk():
+            print(f'seq: {len(seq)}')
             for j in range(1, len(seq) - 1):
                 x.append([i] + [tokens[token].index for token in seq[j-1].tokens() + seq[j+1].tokens()])
                 y.append([tokens[token].index for token in seq[j].tokens()])
