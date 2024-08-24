@@ -41,7 +41,7 @@ def load_data(paths, limit=None):
 def preprocess(functions, tokens):
     x, y = [], []
     for i, fn in enumerate(functions):
-        for seq in fn.random_walk():
+        for seq in fn.random_walk(10): # 10 random walks
             for j in range(1, len(seq) - 1):
                 x.append([i] + [tokens[token].index for token in seq[j-1].tokens() + seq[j+1].tokens()])
                 y.append([tokens[token].index for token in seq[j].tokens()])
@@ -65,7 +65,8 @@ def train(
     functions,
     tokens,
     model=None,
-    embedding_size=100,
+    # embedding_size=100,
+    embedding_size=200, # we choose d = 200
     batch_size=1024,
     epochs=10,
     neg_sample_num=25,
@@ -73,7 +74,8 @@ def train(
     device='cpu',
     mode='train',
     callback=None,
-    learning_rate=0.02
+    learning_rate=0.025 # decaying learning rate 0.025
+    # learning_rate=0.02
 ):
     if mode == 'train':
         if model is None:
@@ -84,7 +86,7 @@ def train(
         if model is None:
             raise ValueError("test mode required pretrained model")
         optimizer = torch.optim.Adam(model.embeddings_f.parameters(), lr=learning_rate)
-        loader = DataLoader(AsmDataset(*preprocess2(functions, tokens)), batch_size=batch_size, shuffle=False)
+        loader = DataLoader(AsmDataset(*preprocess(functions, tokens)), batch_size=batch_size, shuffle=False)
     else:
         raise ValueError("Unknown mode")
 
