@@ -6,6 +6,8 @@ import r2pipe
 import hashlib
 from pathlib import Path
 import time
+from multiprocessing import Pool, Manager
+from tqdm import tqdm
 
 def sha3(data):
     return hashlib.sha3_256(data.encode()).hexdigest()
@@ -65,27 +67,37 @@ def bin2asm(filename, opath, minlen, gt):
     if not validEXE(filename):
         # print('error')
         return 0
-
     r = r2pipe.open(str(filename))
+    # r.cmd('e bin.relocs.apply=true')
+
+    # Suppress output
+    r.cmd('e scr.color=false')
+    r.cmd('e scr.verbosity=0')
+    
     r.cmd('aaaa')
+    
     result = set()
 
     count = 0
     fff = str(filename).split('/')[-1].split('.')[0]
-    fc_name = gt[fff]
-    # print(fc_name)
+    cve = fff.split('_')[0]+'_'+fff.split('_')[1]+'_'+fff.split('_')[2]
+    fc_name = gt[cve]
+    # print(f'fc_name: {fc_name}')
+    # print(f'cve: {cve}')
 
     for fn in r.cmdj('aflj'):
+        # print(f'fn: {fn}')
         function_name = fn['name'].split('.')[-1]
-        if function_name != fc_name:
-            break
         # print(f'function_name: {function_name}')
+        if function_name != fc_name:
+            continue
+        
         r.cmd(f's {fn["offset"]}')
         asm = fn2asm(r.cmdj('pdfj'), minlen)
         if asm:
             uid = sha3(asm)
             if uid in result:
-                break
+                continue
             else:
                 result.add(uid)
             asm = f''' .name {fn["name"]}
@@ -93,12 +105,15 @@ def bin2asm(filename, opath, minlen, gt):
  .file {filename.name}
 ''' + asm
             file_name = ''
+        
             file_name = str(fff)
             # print(file_name)
             with open(opath / file_name, 'w') as f:
                 f.write(asm)
                 count += 1
-    print(f'[+] {filename}')
+            print(f'[+] {filename}')
+            break # don't need to extract other functions
+    
 
     return count
 
@@ -114,37 +129,58 @@ def get_fc():
                     gt[cve] = line.split(',')[3].replace('\n', '')   
         return gt
 
-@click.command()
-@click.option('-i', '--input', 'ipath', help='input directory / file', required=True)
-@click.option('-o', '--output', 'opath', default='asm', help='output directory')
-@click.option('-l', '--len', 'minlen', default=10, help='ignore assembly code with instructions amount smaller than minlen')
-def cli(ipath, opath, minlen):
-    '''
-    Extract assembly functions from binary executable
-    '''
+def process_directory(args):
+    ipath, opath, minlen, gt, progress_queue = args
+    fcount, bcount = 0, 0
     ipath = Path(ipath)
     opath = Path(opath)
 
-    # create output directory
-    if not os.path.exists(opath):
-        os.mkdir(opath)
-
-    fcount, bcount = 0, 0
-    gt = get_fc()
-    # directory
     if os.path.isdir(ipath):
         for f in os.listdir(ipath):
             if not os.path.islink(ipath / f) and not os.path.isdir(ipath / f):
                 fcount += bin2asm(ipath / f, opath, minlen, gt)
                 bcount += 1
-    # file
+            progress_queue.put(1)
     elif os.path.exists(ipath):
         fcount += bin2asm(ipath, opath, minlen, gt)
         bcount += 1
-    else:
-        print(f'[Error] No such file or directory: {ipath}')
+        progress_queue.put(1)
+    return fcount, bcount
 
-    print(f'[+] Total scan binary: {bcount} => Total generated assembly functions: {fcount}')
+@click.command()
+@click.option('-i', '--input', 'ipath', help='input directory / file', required=True)
+@click.option('-o', '--output', 'opath', default='asm', help='output directory')
+@click.option('-l', '--len', 'minlen', default=10, help='ignore assembly code with instructions amount smaller than minlen')
+@click.option('-p', '--processes', default=4, help='number of parallel processes to use')
+def cli(ipath, opath, minlen, processes):
+    '''
+    Extract assembly functions from binary executables using multiple processes
+    '''
+    ipath = Path(ipath)
+    opath = Path(opath)
+    
+    if not os.path.exists(opath):
+        os.mkdir(opath)
+
+    gt = get_fc()
+    directories = [os.path.join(ipath, d) for d in os.listdir(ipath) if os.path.isdir(os.path.join(ipath, d))]
+    
+    # Manager for progress_queue
+    manager = Manager()
+    progress_queue = manager.Queue()
+    args = [(d, opath, minlen, gt, progress_queue) for d in directories]
+
+    # Initialize progress bar
+    total_files = sum(len(os.listdir(d)) for d in directories)
+
+    with tqdm(total=total_files, desc="Processing", unit="file") as pbar:
+        with Pool(processes=processes) as pool:
+            for _ in pool.imap_unordered(process_directory, args):
+                pbar.update(progress_queue.get())
+
+    total_fcount = sum(fcount for fcount, bcount in pool.map(process_directory, args))
+    total_bcount = sum(bcount for fcount, bcount in pool.map(process_directory, args))
+    print(f'[+] Total scan binary: {total_bcount} => Total generated assembly functions: {total_fcount}')
 
 if __name__ == '__main__':
     cli()
