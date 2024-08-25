@@ -202,7 +202,7 @@ def get_std_cve_files(std_path):
 @click.option('-o', '--output', 'opath', default='model.pt', help='output model path', show_default=True)
 def main(ipath, opath):
     bin_path = os.path.join(os.getcwd(), ipath)
-    std_path = os.path.join(os.getcwd(), 'std_binaries')
+    std_path = os.path.join(os.getcwd(), 'std_elf')
     output_path= os.path.join(os.getcwd(), opath)
     gt = make_gt(bin_path, std_path)
     std_cve = get_std_cve_files(std_path)
@@ -216,7 +216,7 @@ def main(ipath, opath):
         f.write(f"f1: {f1}\n")
         f.write(f"avg_auc: {avg_auc}\n")
         f.write(f"confusion_matrix: \n{confusion_matrix}\n")
-        
+
     print(f'accuracy: {acc}, precision: {prec}, recall: {recall}, f1: {f1}, avg_auc: {avg_auc}, confusion_matrix: {confusion_matrix}')
 
 if __name__ == '__main__':
