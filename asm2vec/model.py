@@ -29,13 +29,46 @@ class ASM2VEC(nn.Module):
         return v
 
     # Softmax loss
+    # def forward(self, inp, pos, neg):
+    #     device, batch_size = inp.device, inp.shape[0]
+    #     v = self.v(inp)
+    #     # negative sampling loss
+    #     pred = torch.bmm(self.embeddings_r(torch.cat([pos, neg], dim=1)), v).squeeze()
+    #     label = torch.cat([torch.ones(batch_size, 3), torch.zeros(batch_size, neg.shape[1])], dim=1).to(device)
+    #     print(f"Shape of pred: {pred.shape}")
+    #     print(f"Shape of label: {label.shape}") 
+    #     return bce(sigmoid(pred), label)
     def forward(self, inp, pos, neg):
         device, batch_size = inp.device, inp.shape[0]
         v = self.v(inp)
+
         # negative sampling loss
         pred = torch.bmm(self.embeddings_r(torch.cat([pos, neg], dim=1)), v).squeeze()
+
+        # Ensure label and pred have the same shape
         label = torch.cat([torch.ones(batch_size, 3), torch.zeros(batch_size, neg.shape[1])], dim=1).to(device)
+
+        # Print shapes for debugging
+        # print(f"Shape of pred: {pred.shape}")
+        # print(f"Shape of label: {label.shape}")
+
+        # If pred and label have different shapes, adjust them
+        if len(pred.shape) == 1 and len(label.shape) == 2:
+            # If pred is [28] and label is [1, 28], adjust pred
+            pred = pred.unsqueeze(0)
+            print(f"Adjusted Shape of pred: {pred.shape}")
+        
+        elif len(label.shape) == 1 and len(pred.shape) == 2:
+            # If label is [28] and pred is [1, 28], adjust label
+            label = label.unsqueeze(0)
+            print(f"Adjusted Shape of label: {label.shape}")
+
+        # Final check and matching
+        if pred.shape != label.shape:
+            raise ValueError(f"Final Shape mismatch: pred {pred.shape}, label {label.shape}")
+
         return bce(sigmoid(pred), label)
+
 
     def predict(self, inp, pos):
         device, batch_size = inp.device, inp.shape[0]
