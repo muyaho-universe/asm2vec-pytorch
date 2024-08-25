@@ -207,6 +207,16 @@ def main(ipath, opath):
     gt = make_gt(bin_path, std_path)
     std_cve = get_std_cve_files(std_path)
     acc, prec, recall, f1, avg_auc, confusion_matrix = five_fold_cross_validation(bin_path, std_cve, gt)
+
+    # 결과를 텍스트 파일로 저장
+    with open("cross_validation_results.txt", "w") as f:
+        f.write(f"accuracy: {acc}\n")
+        f.write(f"precision: {prec}\n")
+        f.write(f"recall: {recall}\n")
+        f.write(f"f1: {f1}\n")
+        f.write(f"avg_auc: {avg_auc}\n")
+        f.write(f"confusion_matrix: \n{confusion_matrix}\n")
+        
     print(f'accuracy: {acc}, precision: {prec}, recall: {recall}, f1: {f1}, avg_auc: {avg_auc}, confusion_matrix: {confusion_matrix}')
 
 if __name__ == '__main__':
