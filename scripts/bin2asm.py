@@ -103,7 +103,8 @@ def bin2asm(filename, opath, minlen, gt):
     return count
 
 def get_fc():
-        csv_file = '/root/cve.csv'
+        cwd = os.getcwd()
+        csv_file = os.path.join(cwd, 'cve.csv')
         gt = {}
         with open(csv_file, 'r') as f:
             lines = f.readlines()
