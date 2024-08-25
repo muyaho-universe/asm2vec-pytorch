@@ -2,7 +2,9 @@ import os
 import time
 
 def read_csv():
-    csv_file = '/root/asm.csv'
+    # get cwd
+    cwd = os.getcwd()
+    csv_file = os.path.join(cwd, 'cve.csv')
     with open(csv_file, 'r') as f:
         lines = f.readlines()
 
@@ -10,9 +12,12 @@ def read_csv():
 
 def extract_func(cve):
     '''python3 /root/asm2vec-pytorch/scripts/bin2asm.py -i /root/elf/CVE_2018_0735_pre -o /root/asm2vec-pytorch/data/CVE_2018_0735_pre'''
-    cmd = f'python3 /root/asm2vec-pytorch/scripts/bin2asm.py -i /root/elf/{cve} -o /root/asm2vec-pytorch/data/{cve}'
+    # To string
+    bin2asm = os.join(os.getcwd(), 'scripts/bin2asm.py')
+    elf_path = os.join(os.getcwd(), 'elf', cve)
+    output_path = os.join(os.getcwd(), 'data', cve)
+    cmd = f'python3 {bin2asm} -i {elf_path} -o {output_path}'
     os.system(cmd)
-
 
 def main():
     lines = read_csv()

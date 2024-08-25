@@ -59,34 +59,42 @@ def fn2asm(pdf, minlen):
     # print(f'labels: {labels}')
     return output
 
-def bin2asm(filename, opath, minlen):
+def bin2asm(filename, opath, minlen, gt):
     # print(f'filename: {filename}')
     # check
     if not validEXE(filename):
-    #    print('error')
+        # print('error')
         return 0
 
     r = r2pipe.open(str(filename))
     r.cmd('aaaa')
+    result = set()
 
     count = 0
     fff = str(filename).split('/')[-1].split('.')[0]
-    fc_name = get_fc(fff)
-    print(fc_name)
+    fc_name = gt[fff]
+    # print(fc_name)
 
     for fn in r.cmdj('aflj'):
         function_name = fn['name'].split('.')[-1]
-        print(f'function_name: {function_name}')
+        if function_name != fc_name:
+            break
+        # print(f'function_name: {function_name}')
         r.cmd(f's {fn["offset"]}')
         asm = fn2asm(r.cmdj('pdfj'), minlen)
-        if asm and function_name == fc_name:
+        if asm:
+            uid = sha3(asm)
+            if uid in result:
+                break
+            else:
+                result.add(uid)
             asm = f''' .name {fn["name"]}
  .offset {fn["offset"]:016x}
  .file {filename.name}
 ''' + asm
             file_name = ''
-            file_name = str(fff) + '_' + str(function_name)
-            print(file_name)
+            file_name = str(fff)
+            # print(file_name)
             with open(opath / file_name, 'w') as f:
                 f.write(asm)
                 count += 1
@@ -94,17 +102,16 @@ def bin2asm(filename, opath, minlen):
 
     return count
 
-def get_fc(filename):
-        csv_file = '/root/asm.csv'
+def get_fc():
+        csv_file = '/root/cve.csv'
+        gt = {}
         with open(csv_file, 'r') as f:
             lines = f.readlines()
-
             for line in lines:
                 cve = line.split(',')[1]
-                if cve in filename:
-                    function_name = line.split(',')[3].replace('\n', '')
-                    return function_name
-        return None
+                if cve not in gt:
+                    gt[cve] = line.split(',')[3].replace('\n', '')   
+        return gt
 
 @click.command()
 @click.option('-i', '--input', 'ipath', help='input directory / file', required=True)
@@ -122,16 +129,16 @@ def cli(ipath, opath, minlen):
         os.mkdir(opath)
 
     fcount, bcount = 0, 0
-
+    gt = get_fc()
     # directory
     if os.path.isdir(ipath):
         for f in os.listdir(ipath):
             if not os.path.islink(ipath / f) and not os.path.isdir(ipath / f):
-                fcount += bin2asm(ipath / f, opath, minlen)
+                fcount += bin2asm(ipath / f, opath, minlen, gt)
                 bcount += 1
     # file
     elif os.path.exists(ipath):
-        fcount += bin2asm(ipath, opath, minlen)
+        fcount += bin2asm(ipath, opath, minlen, gt)
         bcount += 1
     else:
         print(f'[Error] No such file or directory: {ipath}')
