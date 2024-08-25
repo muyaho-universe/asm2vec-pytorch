@@ -72,8 +72,8 @@ def bin2asm(filename, opath, minlen, gt):
 
     # Suppress output
     r.cmd('e scr.color=false')
-    r.cmd('e scr.verbosity=0')
-    
+    # r.cmd('e scr.verbosity=0')
+
     r.cmd('aaaa')
     
     result = set()
