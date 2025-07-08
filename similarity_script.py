@@ -56,7 +56,7 @@ def main():
     std_cve = get_std_cve_files(std_path)
     all_bin_files = [os.path.join(bin_path, f) for f in os.listdir(bin_path)]
     # 10000개 샘플링
-    bin_files = random.sample(all_bin_files, min(10000, len(all_bin_files)))
+    bin_files = random.sample(all_bin_files, min(1000, len(all_bin_files)))
 
     # 각 바이너리의 ground truth CVE 추출
     gt_cves = set(extract_cve_name(os.path.basename(bin_file)) for bin_file in bin_files)
