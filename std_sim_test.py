@@ -54,61 +54,60 @@ def main():
     correct = 0
     total = 0
     score_sum = 0.0
-    
     with open('std_similarity_results.txt', 'w') as f:
         f.write('target\tpredicted_cve\ttrue_cve\tscore\tcorrect\n')
         for cve in tqdm(cve_list, desc='Processing CVEs'):
-            for postpre in postpre_list:
-                # 해당 CVE의 post/pre에 대해 4개 O옵션 중 1개를 타겟으로 선정
-                if postpre not in cve_dict[cve]:
+            postpre_choices = [pp for pp in postpre_list if pp in cve_dict[cve]]
+            if not postpre_choices:
+                continue
+            postpre = random.choice(postpre_choices)
+            opts = list(cve_dict[cve][postpre].keys())
+            if len(opts) < 2:
+                continue
+            opt = random.choice(opts)
+            target = cve_dict[cve][postpre][opt]
+            other_opts = [o for o in opts if o != opt]
+            if not other_opts:
+                continue
+            std1_opt = random.choice(other_opts)
+            std1 = cve_dict[cve][postpre][std1_opt]
+            # 나머지 CVE에서 post/pre, O0~O3 중 랜덤 1개씩 선택
+            sampled_cves = [x for x in cve_list if x != cve]
+            sampled_std = []
+            for scve in sampled_cves:
+                spp_choices = [pp for pp in postpre_list if pp in cve_dict[scve]]
+                if not spp_choices:
                     continue
-                opts = list(cve_dict[cve][postpre].keys())
-                if len(opts) < 2:
-                    continue
-                for opt in opts:
-                    target = cve_dict[cve][postpre][opt]
-                    # 같은 post/pre 내에서 자기 자신을 제외한 다른 O옵션 1개 랜덤 선택
-                    other_opts = [o for o in opts if o != opt]
-                    if not other_opts:
-                        continue
-                    std1 = cve_dict[cve][postpre][random.choice(other_opts)]
-                    # 나머지 CVE에서 post/pre, O0~O3 중 랜덤 1개씩 선택
-                    sampled_cves = [x for x in cve_list if x != cve]
-                    sampled_std = []
-                    for scve in sampled_cves:
-                        spp = random.choice([pp for pp in postpre_list if pp in cve_dict[scve]])
-                        sopts = list(cve_dict[scve][spp].keys())
-                        sopt = random.choice(sopts)
-                        sampled_std.append(cve_dict[scve][spp][sopt])
-                    # 비교 대상: [std1] + sampled_std
-                    cve_scores = {}
-                    for idx, std_file in enumerate([std1] + sampled_std):
-                        # NOTE: 비교 횟수 조정
-                        iterations = 2
-                        sum_sim = 0
-                        for _ in range(iterations):
-                            sum_sim += compare_function(target, std_file, model_path)
-                        avg_sim = sum_sim / 2
-                        key = cve if idx == 0 else sampled_cves[idx-1]
-                        cve_scores[key] = avg_sim
-                    # 예측
-                    best_cve = max(cve_scores, key=cve_scores.get)
-                    score = cve_scores[best_cve]
-                    true_cve = cve
-                    is_correct = (true_cve == best_cve)
-                    results[target] = best_cve
-                    total += 1
-                    if is_correct:
-                        correct += 1
-                    score_sum += score
-                    # 결과 출력
-                    print(f"{os.path.basename(target)} -> {best_cve} (score: {score:.4f}) {'O' if is_correct else 'X'}")
-                    # 각 CVE에 대해 결과 기록
-                    f.write(f"{os.path.basename(target)}\t{best_cve}\t{true_cve}\t{score:.4f}\t{int(is_correct)}\n")
-
+                spp = random.choice(spp_choices)
+                sopts = list(cve_dict[scve][spp].keys())
+                sopt = random.choice(sopts)
+                sampled_std.append(cve_dict[scve][spp][sopt])
+            # 비교 대상: [std1] + sampled_std
+            cve_scores = {}
+            for idx, std_file in enumerate([std1] + sampled_std):
+                # NOTE: 반복 횟수 조정
+                iterations = 2
+                sum_sim = 0.0
+                for _ in range(iterations):
+                    sum_sim += compare_function(target, std_file, model_path)
+                avg_sim = sum_sim / iterations
+                key = cve if idx == 0 else sampled_cves[idx-1]
+                cve_scores[key] = avg_sim
+            # 예측
+            best_cve = max(cve_scores, key=cve_scores.get)
+            score = cve_scores[best_cve]
+            true_cve = cve
+            is_correct = (true_cve == best_cve)
+            results[target] = best_cve
+            total += 1
+            if is_correct:
+                correct += 1
+            score_sum += score
+            print(f"{os.path.basename(target)} -> {best_cve} (score: {score:.4f}) {'O' if is_correct else 'X'}")
+            # 결과 기록
+            f.write(f"{os.path.basename(target)}\t{best_cve}\t{true_cve}\t{score:.4f}\t{int(is_correct)}\n")
     accuracy = correct / total if total > 0 else 0
     avg_score = score_sum / total if total > 0 else 0
-
     # 결과 기록
     with open('std_similarity_results.txt', 'a') as f:
         f.write(f"\nTotal: {total}\nCorrect: {correct}\nAccuracy: {accuracy:.4f}\nAvg_score: {avg_score:.4f}\n")
