@@ -56,12 +56,12 @@ class ASM2VEC(nn.Module):
         if len(pred.shape) == 1 and len(label.shape) == 2:
             # If pred is [28] and label is [1, 28], adjust pred
             pred = pred.unsqueeze(0)
-            print(f"Adjusted Shape of pred: {pred.shape}")
+            # print(f"Adjusted Shape of pred: {pred.shape}")
         
         elif len(label.shape) == 1 and len(pred.shape) == 2:
             # If label is [28] and pred is [1, 28], adjust label
             label = label.unsqueeze(0)
-            print(f"Adjusted Shape of label: {label.shape}")
+            # print(f"Adjusted Shape of label: {label.shape}")
 
         # Final check and matching
         if pred.shape != label.shape:
